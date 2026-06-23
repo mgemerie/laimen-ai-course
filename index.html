@@ -4,6 +4,39 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Foundations — Private Workshop with Mark Garza</title>
+  <script>
+    // ── Password gate ─────────────────────────────────────
+    // Change this to whatever you want the access password to be
+    const ACCESS_PASSWORD = "regalbeagle";
+
+    (function () {
+      if (sessionStorage.getItem("ai_course_auth") === "1") return;
+      document.addEventListener("DOMContentLoaded", function () {
+        document.getElementById("pw-gate").style.display = "flex";
+        document.body.style.overflow = "hidden";
+      });
+    })();
+
+    function checkPassword() {
+      const val = document.getElementById("pw-input").value;
+      if (val.toLowerCase().trim() === ACCESS_PASSWORD.toLowerCase()) {
+        sessionStorage.setItem("ai_course_auth", "1");
+        document.getElementById("pw-gate").style.display = "none";
+        document.body.style.overflow = "";
+      } else {
+        const err = document.getElementById("pw-error");
+        err.style.display = "block";
+        document.getElementById("pw-input").value = "";
+        document.getElementById("pw-input").focus();
+        setTimeout(function () { err.style.display = "none"; }, 2000);
+      }
+    }
+
+    document.addEventListener("keydown", function (e) {
+      const gate = document.getElementById("pw-gate");
+      if (gate && gate.style.display !== "none" && e.key === "Enter") checkPassword();
+    });
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -819,6 +852,62 @@
     </div>
   </div>
 </footer>
+
+<!-- Password Gate Overlay -->
+<div id="pw-gate" style="display:none; position:fixed; inset:0; z-index:9999; background:hsl(28,11%,9%); align-items:center; justify-content:center; flex-direction:column;">
+  <div style="width:100%; max-width:400px; padding:0 24px;">
+    <div style="font-family:'Hanken Grotesk',sans-serif; font-weight:900; font-size:22px; color:hsl(44,44%,96%); letter-spacing:-0.02em; margin-bottom:4px;">
+      Laimen<span style="color:hsl(18,88%,51%);">.</span>AI
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.18em; color:hsl(30,8%,45%); margin-bottom:36px;">
+      Private Workshop
+    </div>
+    <div style="font-size:18px; font-weight:800; color:hsl(44,44%,96%); margin-bottom:8px;">
+      Enter access code
+    </div>
+    <div style="font-size:14px; color:hsl(30,8%,50%); margin-bottom:24px;">
+      This event is by invitation only.
+    </div>
+    <input
+      id="pw-input"
+      type="password"
+      placeholder="Access code"
+      autocomplete="off"
+      style="
+        width:100%; padding:14px 16px;
+        font-family:'Hanken Grotesk',sans-serif; font-size:16px;
+        background:hsl(28,11%,13%); color:hsl(44,44%,96%);
+        border:2px solid hsl(28,11%,28%);
+        outline:none; margin-bottom:12px;
+        box-sizing:border-box;
+      "
+      onfocus="this.style.borderColor='hsl(18,88%,51%)'"
+      onblur="this.style.borderColor='hsl(28,11%,28%)'"
+    />
+    <div
+      id="pw-error"
+      style="display:none; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:hsl(18,88%,51%); margin-bottom:12px;"
+    >
+      Wrong code. Try again.
+    </div>
+    <button
+      onclick="checkPassword()"
+      style="
+        width:100%; padding:15px;
+        font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700;
+        text-transform:uppercase; letter-spacing:0.1em;
+        background:hsl(18,88%,51%); color:#fff;
+        border:2px solid hsl(18,88%,51%);
+        cursor:pointer; box-shadow:4px 4px 0 hsl(28,11%,22%);
+        transition:transform 0.12s, box-shadow 0.12s;
+      "
+      onmouseover="this.style.transform='translate(-2px,-2px)'; this.style.boxShadow='6px 6px 0 hsl(28,11%,22%)'"
+      onmouseout="this.style.transform=''; this.style.boxShadow='4px 4px 0 hsl(28,11%,22%)'"
+    >
+      Enter →
+    </button>
+  </div>
+</div>
 
 </body>
 </html>
