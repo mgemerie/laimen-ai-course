@@ -563,7 +563,7 @@
 <div class="hero-scroll-track">
 <div class="hero-sticky">
   <div class="hero-bg">
-    <video id="hero-video" autoplay muted loop playsinline preload="auto">
+    <video id="hero-video" muted playsinline preload="auto">
       <source src="tunnel-hero.mp4" type="video/mp4">
     </video>
   </div>
@@ -858,26 +858,27 @@
 // ── Boot ─────────────────────────────────────────────────────────────────────
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Scroll-driven video zoom ──────────────────────────────────────────────────
+// ── Scroll-driven video scrub ─────────────────────────────────────────────────
 (function () {
   const video = document.getElementById('hero-video');
   if (!video) return;
 
-  // Subtle scale on scroll — the video itself already moves forward,
-  // adding a gentle zoom amplifies the "approaching" feel
-  gsap.fromTo(video,
-    { scale: 1.0 },
-    {
-      scale: 1.18,
-      ease: 'none',
-      scrollTrigger: {
-        trigger: '.hero-scroll-track',
-        start: 'top top',
-        end: 'bottom bottom',
-        scrub: 1.2,
+  // Video stays paused — scroll advances the playhead
+  video.pause();
+
+  video.addEventListener('loadedmetadata', function () {
+    const duration = video.duration;
+
+    ScrollTrigger.create({
+      trigger: '.hero-scroll-track',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: true,
+      onUpdate: (self) => {
+        video.currentTime = self.progress * duration;
       }
-    }
-  );
+    });
+  });
 })();
 
 // ── GSAP card reveals ────────────────────────────────────────────────────────
