@@ -38,8 +38,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
-  <!-- Three.js + GSAP -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- GSAP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 
@@ -162,30 +161,37 @@
     }
     .nav-cta:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 rgba(255,255,255,0.2); }
 
-    /* ── Hero (Three.js canvas, scroll-driven) ───────────── */
+    /* ── Hero (scroll-driven tunnel image) ───────────────── */
     .hero-scroll-track {
-      /* Tall container — scroll distance = tunnel depth */
       height: 300vh;
       position: relative;
     }
     .hero-sticky {
-      /* Sticks while user scrolls through the track */
       position: sticky; top: 0;
       height: 100vh; min-height: 640px;
       display: flex; align-items: center;
       overflow: hidden;
     }
-    #hero-canvas {
+    .hero-bg {
       position: absolute; inset: 0;
-      width: 100%; height: 100%;
+      background-image: url('tunnel-hero.png');
+      background-size: cover;
+      background-position: center center;
+      transform-origin: center center;
+      will-change: transform;
+    }
+    /* Slow continuous zoom — JS overrides scale via scroll */
+    @keyframes tunnelIdlePulse {
+      0%   { transform: scale(1.0); }
+      100% { transform: scale(1.18); }
     }
     .hero-overlay {
       position: absolute; inset: 0;
       background: linear-gradient(
         to bottom,
-        rgba(20,14,10,0.45) 0%,
-        rgba(20,14,10,0.15) 50%,
-        rgba(20,14,10,0.7) 100%
+        rgba(12,8,5,0.35) 0%,
+        rgba(12,8,5,0.05) 45%,
+        rgba(12,8,5,0.65) 100%
       );
     }
     .hero-content {
@@ -554,10 +560,10 @@
   </div>
 </nav>
 
-<!-- Hero: tall scroll track with sticky 3D tunnel -->
+<!-- Hero: tall scroll track with sticky tunnel image -->
 <div class="hero-scroll-track">
 <div class="hero-sticky">
-  <canvas id="hero-canvas"></canvas>
+  <div class="hero-bg" id="hero-bg"></div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
     <div class="hero-badge">
@@ -849,122 +855,35 @@
 // ── Boot ─────────────────────────────────────────────────────────────────────
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Three.js Tunnel — scroll-driven ─────────────────────────────────────────
+// ── Scroll-driven tunnel zoom ─────────────────────────────────────────────────
 (function () {
-  const canvas = document.getElementById('hero-canvas');
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(0x100b09, 1);
+  const bg = document.getElementById('hero-bg');
+  if (!bg) return;
 
-  const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x100b09, 0.036);
-
-  const camera = new THREE.PerspectiveCamera(72, 1, 0.1, 120);
-
-  function resize() {
-    const wrap = canvas.parentElement; // .hero-sticky
-    const w = wrap.offsetWidth;
-    const h = wrap.offsetHeight;
-    renderer.setSize(w, h);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // Curved path through the tunnel
-  const path = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0,    0,    0),
-    new THREE.Vector3(0.8,  -0.3, -18),
-    new THREE.Vector3(-0.5,  0.4, -36),
-    new THREE.Vector3(0.3,  -0.2, -54),
-    new THREE.Vector3(0,     0,   -72),
-  ]);
-
-  // Tube walls
-  const tubeGeo = new THREE.TubeGeometry(path, 220, 3.6, 10, false);
-  const tubeMat = new THREE.MeshStandardMaterial({
-    color: 0x160d06, side: THREE.BackSide, roughness: 0.85, metalness: 0.15,
-  });
-  scene.add(new THREE.Mesh(tubeGeo, tubeMat));
-
-  // Orange spine stripe along the floor
-  const stripeGeo = new THREE.TubeGeometry(path, 220, 0.07, 4, false);
-  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xe84d1a, emissive: 0xe84d1a, emissiveIntensity: 0.8 });
-  scene.add(new THREE.Mesh(stripeGeo, stripeMat));
-
-  // Orange edge sconces alternating left/right
-  const numSconces = 26;
-  for (let i = 0; i < numSconces; i++) {
-    const t = (i + 0.5) / numSconces;
-    const pt = path.getPoint(t);
-    const side = (i % 2 === 0) ? 1 : -1;
-
-    const light = new THREE.PointLight(0xe84d1a, 1.1, 10);
-    light.position.set(pt.x + side * 3.1, pt.y - 2.2, pt.z);
-    scene.add(light);
-
-    const pip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.14, 0.14),
-      new THREE.MeshBasicMaterial({ color: 0xff7a40 })
-    );
-    pip.position.copy(light.position);
-    scene.add(pip);
-  }
-
-  scene.add(new THREE.AmbientLight(0x1f0e06, 1.4));
-
-  // Dust particles
-  const N = 350;
-  const pos = new Float32Array(N * 3);
-  for (let i = 0; i < N; i++) {
-    const t = Math.random();
-    const pt = path.getPoint(t);
-    pos[i * 3]     = pt.x + (Math.random() - 0.5) * 6;
-    pos[i * 3 + 1] = pt.y + (Math.random() - 0.5) * 6;
-    pos[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 2;
-  }
-  const pGeo = new THREE.BufferGeometry();
-  pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xe84d1a, size: 0.055, transparent: true, opacity: 0.5 })));
-
-  // Current camera progress along path (0 → 1)
-  let scrollProgress = 0;
-
-  // GSAP ScrollTrigger drives the progress value
-  gsap.to({ p: 0 }, {
-    p: 0.82,
-    ease: 'none',
-    scrollTrigger: {
-      trigger: '.hero-scroll-track',
-      start: 'top top',
-      end: 'bottom bottom',
-      scrub: 1.2,             // lag creates the "smooth fly-through" feel
-      onUpdate: (self) => { scrollProgress = self.progress * 0.82; },
+  // Map scroll progress through hero track → image scale 1.0 → 1.5
+  // (zooming in simulates flying down the corridor)
+  gsap.fromTo(bg,
+    { scale: 1.0 },
+    {
+      scale: 1.55,
+      ease: 'none',
+      scrollTrigger: {
+        trigger: '.hero-scroll-track',
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 1.0,
+      }
     }
-  });
+  );
 
-  // Render loop — reads scrollProgress each frame
-  let raf;
-  function animate(time) {
-    raf = requestAnimationFrame(animate);
-    const p   = scrollProgress;
-    const pLk = Math.min(p + 0.025, 0.999);
-    const camPt  = path.getPoint(p);
-    const lookPt = path.getPoint(pLk);
-    camera.position.copy(camPt);
-    // tiny breath to avoid a dead-static feeling when not scrolling
-    camera.position.x += Math.sin(time * 0.00025) * 0.09;
-    camera.position.y += Math.cos(time * 0.00035) * 0.05;
-    camera.lookAt(lookPt);
-    renderer.render(scene, camera);
-  }
-  animate(0);
-
-  // Pause rendering when tab is hidden (battery / perf)
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) cancelAnimationFrame(raf);
-    else animate(0);
+  // Subtle idle breathing when not scrolling
+  gsap.to(bg, {
+    scale: '+=0.012',
+    yoyo: true,
+    repeat: -1,
+    duration: 3,
+    ease: 'sine.inOut',
+    overwrite: false,
   });
 })();
 
