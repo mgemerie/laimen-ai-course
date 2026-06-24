@@ -162,9 +162,15 @@
     }
     .nav-cta:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 rgba(255,255,255,0.2); }
 
-    /* ── Hero (Three.js canvas) ───────────────────────────── */
-    .hero-wrap {
+    /* ── Hero (Three.js canvas, scroll-driven) ───────────── */
+    .hero-scroll-track {
+      /* Tall container — scroll distance = tunnel depth */
+      height: 300vh;
       position: relative;
+    }
+    .hero-sticky {
+      /* Sticks while user scrolls through the track */
+      position: sticky; top: 0;
       height: 100vh; min-height: 640px;
       display: flex; align-items: center;
       overflow: hidden;
@@ -548,8 +554,9 @@
   </div>
 </nav>
 
-<!-- Hero with Three.js tunnel -->
-<div class="hero-wrap">
+<!-- Hero: tall scroll track with sticky 3D tunnel -->
+<div class="hero-scroll-track">
+<div class="hero-sticky">
   <canvas id="hero-canvas"></canvas>
   <div class="hero-overlay"></div>
   <div class="hero-content">
@@ -574,7 +581,8 @@
     <span>Scroll to explore</span>
     <div class="scroll-arrow"></div>
   </div>
-</div>
+</div><!-- end hero-sticky -->
+</div><!-- end hero-scroll-track -->
 
 <!-- Meta strip -->
 <div class="meta-strip">
@@ -838,7 +846,10 @@
 </footer>
 
 <script>
-// ── Three.js Tunnel ──────────────────────────────────────────────────────────
+// ── Boot ─────────────────────────────────────────────────────────────────────
+gsap.registerPlugin(ScrollTrigger);
+
+// ── Three.js Tunnel — scroll-driven ─────────────────────────────────────────
 (function () {
   const canvas = document.getElementById('hero-canvas');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -846,14 +857,14 @@
   renderer.setClearColor(0x100b09, 1);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x100b09, 0.038);
+  scene.fog = new THREE.FogExp2(0x100b09, 0.036);
 
-  const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 120);
-  camera.position.set(0, 0, 0);
+  const camera = new THREE.PerspectiveCamera(72, 1, 0.1, 120);
 
   function resize() {
-    const w = canvas.parentElement.offsetWidth;
-    const h = canvas.parentElement.offsetHeight;
+    const wrap = canvas.parentElement; // .hero-sticky
+    const w = wrap.offsetWidth;
+    const h = wrap.offsetHeight;
     renderer.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
@@ -861,89 +872,103 @@
   resize();
   window.addEventListener('resize', resize);
 
-  // Tunnel tube along a path
+  // Curved path through the tunnel
   const path = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0.6, -0.2, -20),
-    new THREE.Vector3(-0.4, 0.3, -40),
-    new THREE.Vector3(0.2, -0.1, -60),
-    new THREE.Vector3(0, 0, -80)
+    new THREE.Vector3(0,    0,    0),
+    new THREE.Vector3(0.8,  -0.3, -18),
+    new THREE.Vector3(-0.5,  0.4, -36),
+    new THREE.Vector3(0.3,  -0.2, -54),
+    new THREE.Vector3(0,     0,   -72),
   ]);
 
-  const tubeGeo = new THREE.TubeGeometry(path, 200, 3.5, 8, false);
+  // Tube walls
+  const tubeGeo = new THREE.TubeGeometry(path, 220, 3.6, 10, false);
   const tubeMat = new THREE.MeshStandardMaterial({
-    color: 0x1a1008,
-    side: THREE.BackSide,
-    roughness: 0.9,
-    metalness: 0.1,
+    color: 0x160d06, side: THREE.BackSide, roughness: 0.85, metalness: 0.15,
   });
-  const tube = new THREE.Mesh(tubeGeo, tubeMat);
-  scene.add(tube);
+  scene.add(new THREE.Mesh(tubeGeo, tubeMat));
 
-  // Floor stripe (the "path")
-  const floorGeo = new THREE.TubeGeometry(path, 200, 0.08, 4, false);
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0xe84d1a, emissive: 0xe84d1a, emissiveIntensity: 0.6 });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  scene.add(floor);
+  // Orange spine stripe along the floor
+  const stripeGeo = new THREE.TubeGeometry(path, 220, 0.07, 4, false);
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xe84d1a, emissive: 0xe84d1a, emissiveIntensity: 0.8 });
+  scene.add(new THREE.Mesh(stripeGeo, stripeMat));
 
-  // Orange edge lights along the tunnel
-  const numLights = 22;
-  for (let i = 0; i < numLights; i++) {
-    const t = i / numLights;
+  // Orange edge sconces alternating left/right
+  const numSconces = 26;
+  for (let i = 0; i < numSconces; i++) {
+    const t = (i + 0.5) / numSconces;
     const pt = path.getPoint(t);
-    const light = new THREE.PointLight(0xe84d1a, 0.9, 12);
-    // alternate left/right on walls
     const side = (i % 2 === 0) ? 1 : -1;
-    light.position.set(pt.x + side * 3.2, pt.y - 2.5, pt.z);
+
+    const light = new THREE.PointLight(0xe84d1a, 1.1, 10);
+    light.position.set(pt.x + side * 3.1, pt.y - 2.2, pt.z);
     scene.add(light);
 
-    // Small glowing box for each light source
-    const boxGeo = new THREE.BoxGeometry(0.12, 0.12, 0.12);
-    const boxMat = new THREE.MeshBasicMaterial({ color: 0xe84d1a });
-    const box = new THREE.Mesh(boxGeo, boxMat);
-    box.position.copy(light.position);
-    scene.add(box);
+    const pip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.14, 0.14),
+      new THREE.MeshBasicMaterial({ color: 0xff7a40 })
+    );
+    pip.position.copy(light.position);
+    scene.add(pip);
   }
 
-  // Ambient light
-  scene.add(new THREE.AmbientLight(0x220f07, 1.2));
+  scene.add(new THREE.AmbientLight(0x1f0e06, 1.4));
 
-  // Floating particles
-  const particleCount = 300;
-  const positions = new Float32Array(particleCount * 3);
-  for (let i = 0; i < particleCount; i++) {
+  // Dust particles
+  const N = 350;
+  const pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
     const t = Math.random();
     const pt = path.getPoint(t);
-    positions[i * 3]     = pt.x + (Math.random() - 0.5) * 5;
-    positions[i * 3 + 1] = pt.y + (Math.random() - 0.5) * 5;
-    positions[i * 3 + 2] = pt.z;
+    pos[i * 3]     = pt.x + (Math.random() - 0.5) * 6;
+    pos[i * 3 + 1] = pt.y + (Math.random() - 0.5) * 6;
+    pos[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 2;
   }
-  const particleGeo = new THREE.BufferGeometry();
-  particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const particleMat = new THREE.PointsMaterial({ color: 0xe84d1a, size: 0.06, transparent: true, opacity: 0.55 });
-  scene.add(new THREE.Points(particleGeo, particleMat));
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xe84d1a, size: 0.055, transparent: true, opacity: 0.5 })));
 
-  // Camera animation — fly forward endlessly
-  let progress = 0;
-  const SPEED = 0.00012;
+  // Current camera progress along path (0 → 1)
+  let scrollProgress = 0;
 
+  // GSAP ScrollTrigger drives the progress value
+  gsap.to({ p: 0 }, {
+    p: 0.82,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: '.hero-scroll-track',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: 1.2,             // lag creates the "smooth fly-through" feel
+      onUpdate: (self) => { scrollProgress = self.progress * 0.82; },
+    }
+  });
+
+  // Render loop — reads scrollProgress each frame
+  let raf;
   function animate(time) {
-    requestAnimationFrame(animate);
-    progress = (progress + SPEED) % 0.82; // don't go past the end
-    const camPt = path.getPoint(progress);
-    const lookPt = path.getPoint(Math.min(progress + 0.025, 1));
+    raf = requestAnimationFrame(animate);
+    const p   = scrollProgress;
+    const pLk = Math.min(p + 0.025, 0.999);
+    const camPt  = path.getPoint(p);
+    const lookPt = path.getPoint(pLk);
     camera.position.copy(camPt);
+    // tiny breath to avoid a dead-static feeling when not scrolling
+    camera.position.x += Math.sin(time * 0.00025) * 0.09;
+    camera.position.y += Math.cos(time * 0.00035) * 0.05;
     camera.lookAt(lookPt);
-    // subtle mouse-driven tilt
-    camera.position.x += Math.sin(time * 0.0003) * 0.12;
-    camera.position.y += Math.cos(time * 0.0004) * 0.06;
     renderer.render(scene, camera);
   }
   animate(0);
+
+  // Pause rendering when tab is hidden (battery / perf)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cancelAnimationFrame(raf);
+    else animate(0);
+  });
 })();
 
-// ── GSAP ScrollTrigger ───────────────────────────────────────────────────────
-gsap.registerPlugin(ScrollTrigger);
+// ── GSAP card reveals ────────────────────────────────────────────────────────
 
 // Benefit cards
 gsap.utils.toArray('#benefit-cards .card-3d').forEach((card, i) => {
