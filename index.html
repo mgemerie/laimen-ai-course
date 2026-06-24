@@ -163,7 +163,7 @@
 
     /* ── Hero (scroll-driven tunnel image) ───────────────── */
     .hero-scroll-track {
-      height: 180vh;
+      height: 260vh;
       position: relative;
     }
     .hero-sticky {
@@ -856,16 +856,16 @@ gsap.registerPlugin(ScrollTrigger);
   if (!bg) return;
 
   gsap.fromTo(bg,
-    { scale: 1.0, filter: 'brightness(0.7)' },
+    { scale: 1.0, filter: 'brightness(0.65)' },
     {
-      scale: 1.35,
-      filter: 'brightness(1.05)',
-      ease: 'none',
+      scale: 1.5,
+      filter: 'brightness(1.1)',
+      ease: 'power1.inOut',
       scrollTrigger: {
         trigger: '.hero-scroll-track',
         start: 'top top',
         end: 'bottom bottom',
-        scrub: 0.6,
+        scrub: 1.0,
       }
     }
   );
