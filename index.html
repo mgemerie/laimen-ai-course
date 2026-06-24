@@ -163,7 +163,7 @@
 
     /* ── Hero (scroll-driven tunnel image) ───────────────── */
     .hero-scroll-track {
-      height: 300vh;
+      height: 180vh;
       position: relative;
     }
     .hero-sticky {
@@ -174,15 +174,11 @@
     }
     .hero-bg {
       position: absolute; inset: 0;
-      overflow: hidden;
-    }
-    #hero-video {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      min-width: 100%; min-height: 100%;
-      width: auto; height: auto;
-      object-fit: cover;
+      background-image: url('tunnel-hero.png');
+      background-size: cover;
+      background-position: center center;
+      transform-origin: center center;
+      will-change: transform;
     }
     .hero-overlay {
       position: absolute; inset: 0;
@@ -562,11 +558,7 @@
 <!-- Hero: tall scroll track with sticky tunnel image -->
 <div class="hero-scroll-track">
 <div class="hero-sticky">
-  <div class="hero-bg">
-    <video id="hero-video" muted playsinline preload="auto">
-      <source src="tunnel-hero.mp4" type="video/mp4">
-    </video>
-  </div>
+  <div class="hero-bg" id="hero-bg"></div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
     <div class="hero-badge">
@@ -858,27 +850,25 @@
 // ── Boot ─────────────────────────────────────────────────────────────────────
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Scroll-driven video scrub ─────────────────────────────────────────────────
+// ── Scroll-driven zoom ────────────────────────────────────────────────────────
 (function () {
-  const video = document.getElementById('hero-video');
-  if (!video) return;
+  const bg = document.getElementById('hero-bg');
+  if (!bg) return;
 
-  // Video stays paused — scroll advances the playhead
-  video.pause();
-
-  video.addEventListener('loadedmetadata', function () {
-    const duration = video.duration;
-
-    ScrollTrigger.create({
-      trigger: '.hero-scroll-track',
-      start: 'top top',
-      end: 'bottom bottom',
-      scrub: true,
-      onUpdate: (self) => {
-        video.currentTime = self.progress * duration;
+  gsap.fromTo(bg,
+    { scale: 1.0, filter: 'brightness(0.7)' },
+    {
+      scale: 1.35,
+      filter: 'brightness(1.05)',
+      ease: 'none',
+      scrollTrigger: {
+        trigger: '.hero-scroll-track',
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 0.6,
       }
-    });
-  });
+    }
+  );
 })();
 
 // ── GSAP card reveals ────────────────────────────────────────────────────────
