@@ -174,16 +174,15 @@
     }
     .hero-bg {
       position: absolute; inset: 0;
-      background-image: url('tunnel-hero.png');
-      background-size: cover;
-      background-position: center center;
-      transform-origin: center center;
-      will-change: transform;
+      overflow: hidden;
     }
-    /* Slow continuous zoom — JS overrides scale via scroll */
-    @keyframes tunnelIdlePulse {
-      0%   { transform: scale(1.0); }
-      100% { transform: scale(1.18); }
+    #hero-video {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      min-width: 100%; min-height: 100%;
+      width: auto; height: auto;
+      object-fit: cover;
     }
     .hero-overlay {
       position: absolute; inset: 0;
@@ -563,7 +562,11 @@
 <!-- Hero: tall scroll track with sticky tunnel image -->
 <div class="hero-scroll-track">
 <div class="hero-sticky">
-  <div class="hero-bg" id="hero-bg"></div>
+  <div class="hero-bg">
+    <video id="hero-video" autoplay muted loop playsinline preload="auto">
+      <source src="tunnel-hero.mp4" type="video/mp4">
+    </video>
+  </div>
   <div class="hero-overlay"></div>
   <div class="hero-content">
     <div class="hero-badge">
@@ -855,36 +858,26 @@
 // ── Boot ─────────────────────────────────────────────────────────────────────
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Scroll-driven tunnel zoom ─────────────────────────────────────────────────
+// ── Scroll-driven video zoom ──────────────────────────────────────────────────
 (function () {
-  const bg = document.getElementById('hero-bg');
-  if (!bg) return;
+  const video = document.getElementById('hero-video');
+  if (!video) return;
 
-  // Map scroll progress through hero track → image scale 1.0 → 1.5
-  // (zooming in simulates flying down the corridor)
-  gsap.fromTo(bg,
+  // Subtle scale on scroll — the video itself already moves forward,
+  // adding a gentle zoom amplifies the "approaching" feel
+  gsap.fromTo(video,
     { scale: 1.0 },
     {
-      scale: 1.55,
+      scale: 1.18,
       ease: 'none',
       scrollTrigger: {
         trigger: '.hero-scroll-track',
         start: 'top top',
         end: 'bottom bottom',
-        scrub: 1.0,
+        scrub: 1.2,
       }
     }
   );
-
-  // Subtle idle breathing when not scrolling
-  gsap.to(bg, {
-    scale: '+=0.012',
-    yoyo: true,
-    repeat: -1,
-    duration: 3,
-    ease: 'sine.inOut',
-    overwrite: false,
-  });
 })();
 
 // ── GSAP card reveals ────────────────────────────────────────────────────────
