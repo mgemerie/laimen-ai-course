@@ -909,55 +909,113 @@ gsap.registerPlugin(ScrollTrigger);
   const pathStripMat = new THREE.MeshBasicMaterial({ color: 0xe84d1a });
   scene.add(new THREE.Mesh(pathStripGeo, pathStripMat));
 
-  // ── Concept nodes along the path ───────────────────────
-  const concepts = [
-    { label: 'How LLMs Work',   color: 0xe84d1a },
-    { label: 'Prompting',       color: 0xe84d1a },
-    { label: 'AI Tools',        color: 0xe84d1a },
-    { label: 'Automation',      color: 0xe84d1a },
-    { label: 'Your Roadmap',    color: 0xf4a261 },
+  // ── Session nodes along the path ───────────────────────
+  const sessions = [
+    {
+      label:    'Session 01',
+      sublabel: 'AI Foundations',
+      tag:      'Friday PM · 4 hrs',
+      color:    0xe84d1a,
+      size:     0.75,
+    },
+    {
+      label:    'Session 02',
+      sublabel: 'Tools & Workflows',
+      tag:      'Saturday AM · 4 hrs',
+      color:    0xe84d1a,
+      size:     0.75,
+    },
+    {
+      label:    'Session 03',
+      sublabel: 'Your AI Roadmap',
+      tag:      'Saturday PM · 4 hrs',
+      color:    0xf4a261,
+      size:     0.9,
+    },
   ];
 
+  function makeLabel(line1, line2, line3, color) {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 220;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, 512, 220);
+
+    // Session number
+    ctx.font = 'bold 28px "JetBrains Mono", monospace';
+    ctx.fillStyle = '#e84d1a';
+    ctx.letterSpacing = '0.15em';
+    ctx.fillText(line1.toUpperCase(), 20, 48);
+
+    // Session name
+    ctx.font = 'bold 52px Helvetica, sans-serif';
+    ctx.fillStyle = '#fdf5e6';
+    ctx.fillText(line2, 20, 112);
+
+    // Tag
+    ctx.font = '26px "JetBrains Mono", monospace';
+    ctx.fillStyle = 'rgba(244,162,97,0.75)';
+    ctx.fillText(line3, 20, 158);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
   const nodes = [];
-  concepts.forEach((c, i) => {
-    const t = (i + 0.8) / (concepts.length + 0.5);
+  sessions.forEach((s, i) => {
+    const t = (i + 1) / (sessions.length + 1);
     const pos = path.getPoint(t);
 
     // Floating orb
     const orb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.55, 24, 24),
+      new THREE.SphereGeometry(s.size, 28, 28),
       new THREE.MeshStandardMaterial({
-        color: c.color, emissive: c.color, emissiveIntensity: 0.7,
+        color: s.color, emissive: s.color, emissiveIntensity: 0.65,
         roughness: 0.2, metalness: 0.5,
       })
     );
-    orb.position.set(pos.x, 2.0, pos.z);
-    orb.castShadow = true;
+    orb.position.set(pos.x, 2.2, pos.z);
     scene.add(orb);
     nodes.push(orb);
 
     // Glow light
-    const glow = new THREE.PointLight(c.color, 2.2, 14);
+    const glow = new THREE.PointLight(s.color, 3.0, 18);
     glow.position.copy(orb.position);
     scene.add(glow);
 
-    // Thin pillar beneath orb
-    const pillar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.04, 0.04, 2.0, 6),
-      new THREE.MeshBasicMaterial({ color: c.color })
-    );
-    pillar.position.set(pos.x, 1.0, pos.z);
-    scene.add(pillar);
-
-    // Ring around orb
+    // Outer ring
     const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.85, 0.03, 8, 32),
-      new THREE.MeshBasicMaterial({ color: c.color })
+      new THREE.TorusGeometry(s.size + 0.5, 0.035, 8, 48),
+      new THREE.MeshBasicMaterial({ color: s.color })
     );
     ring.position.copy(orb.position);
     ring.rotation.x = Math.PI / 2;
     scene.add(ring);
     nodes.push(ring);
+
+    // Second ring (tilted)
+    const ring2 = ring.clone();
+    ring2.rotation.set(Math.PI / 3, 0, Math.PI / 5);
+    scene.add(ring2);
+    nodes.push(ring2);
+
+    // Pillar from ground
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.05, 0.05, 2.2, 6),
+      new THREE.MeshBasicMaterial({ color: s.color })
+    );
+    pillar.position.set(pos.x, 1.1, pos.z);
+    scene.add(pillar);
+
+    // Floating text label (canvas texture on plane)
+    const tex = makeLabel(s.label, s.sublabel, s.tag, s.color);
+    const label = new THREE.Mesh(
+      new THREE.PlaneGeometry(5.5, 2.4),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })
+    );
+    label.position.set(pos.x + 2.2, 3.8, pos.z);
+    label.rotation.y = -0.3;
+    scene.add(label);
   });
 
   // ── Tall obelisks scattered in the scene ───────────────
