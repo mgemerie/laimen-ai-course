@@ -38,7 +38,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
-  <!-- GSAP -->
+  <!-- Three.js + GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 
@@ -161,9 +162,9 @@
     }
     .nav-cta:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 rgba(255,255,255,0.2); }
 
-    /* ── Hero (scroll-driven tunnel image) ───────────────── */
+    /* ── Hero (3D scroll-driven world) ───────────────────── */
     .hero-scroll-track {
-      height: 260vh;
+      height: 300vh;
       position: relative;
     }
     .hero-sticky {
@@ -171,22 +172,19 @@
       height: 100vh; min-height: 640px;
       display: flex; align-items: center;
       overflow: hidden;
+      background: #0d0806;
     }
-    .hero-bg {
+    #hero-canvas {
       position: absolute; inset: 0;
-      background-image: url('tunnel-hero.png');
-      background-size: cover;
-      background-position: center center;
-      transform-origin: center center;
-      will-change: transform;
+      width: 100%; height: 100%;
     }
     .hero-overlay {
       position: absolute; inset: 0;
       background: linear-gradient(
         to bottom,
-        rgba(12,8,5,0.35) 0%,
-        rgba(12,8,5,0.05) 45%,
-        rgba(12,8,5,0.65) 100%
+        rgba(13,8,6,0.3) 0%,
+        rgba(13,8,6,0.0) 40%,
+        rgba(13,8,6,0.6) 100%
       );
     }
     .hero-content {
@@ -558,7 +556,7 @@
 <!-- Hero: tall scroll track with sticky tunnel image -->
 <div class="hero-scroll-track">
 <div class="hero-sticky">
-  <div class="hero-bg" id="hero-bg"></div>
+  <canvas id="hero-canvas"></canvas>
   <div class="hero-overlay"></div>
   <div class="hero-content">
     <div class="hero-badge">
@@ -850,25 +848,208 @@
 // ── Boot ─────────────────────────────────────────────────────────────────────
 gsap.registerPlugin(ScrollTrigger);
 
-// ── Scroll-driven zoom ────────────────────────────────────────────────────────
+// ── 3D World — scroll-driven ─────────────────────────────────────────────────
 (function () {
-  const bg = document.getElementById('hero-bg');
-  if (!bg) return;
+  const canvas = document.getElementById('hero-canvas');
+  if (!canvas) return;
 
-  gsap.fromTo(bg,
-    { scale: 1.0, filter: 'brightness(0.65)' },
-    {
-      scale: 1.5,
-      filter: 'brightness(1.1)',
-      ease: 'power1.inOut',
-      scrollTrigger: {
-        trigger: '.hero-scroll-track',
-        start: 'top top',
-        end: 'bottom bottom',
-        scrub: 1.0,
-      }
-    }
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x0d0806, 1);
+  renderer.shadowMap.enabled = true;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0d0806);
+  scene.fog = new THREE.FogExp2(0x0d0806, 0.022);
+
+  const camera = new THREE.PerspectiveCamera(65, 1, 0.1, 200);
+
+  function resize() {
+    const w = canvas.parentElement.offsetWidth;
+    const h = canvas.parentElement.offsetHeight;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ── Path curve (winding journey through the world) ──────
+  const pathPoints = [
+    new THREE.Vector3(0,   1.6,  0),
+    new THREE.Vector3(6,   1.6, -22),
+    new THREE.Vector3(-4,  1.6, -44),
+    new THREE.Vector3(5,   1.6, -66),
+    new THREE.Vector3(0,   1.6, -88),
+  ];
+  const path = new THREE.CatmullRomCurve3(pathPoints);
+
+  // ── Ground plane ────────────────────────────────────────
+  const groundGeo = new THREE.PlaneGeometry(300, 300, 60, 60);
+  const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x0f0a07,
+    roughness: 0.95,
+    metalness: 0.05,
+  });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // ── Grid lines on ground ────────────────────────────────
+  const grid = new THREE.GridHelper(300, 60, 0x1e1008, 0x160c06);
+  grid.position.y = 0.01;
+  scene.add(grid);
+
+  // ── Glowing path strip on the ground ───────────────────
+  const pathStripGeo = new THREE.TubeGeometry(
+    new THREE.CatmullRomCurve3(pathPoints.map(p => new THREE.Vector3(p.x, 0.05, p.z))),
+    200, 0.22, 6, false
   );
+  const pathStripMat = new THREE.MeshBasicMaterial({ color: 0xe84d1a });
+  scene.add(new THREE.Mesh(pathStripGeo, pathStripMat));
+
+  // ── Concept nodes along the path ───────────────────────
+  const concepts = [
+    { label: 'How LLMs Work',   color: 0xe84d1a },
+    { label: 'Prompting',       color: 0xe84d1a },
+    { label: 'AI Tools',        color: 0xe84d1a },
+    { label: 'Automation',      color: 0xe84d1a },
+    { label: 'Your Roadmap',    color: 0xf4a261 },
+  ];
+
+  const nodes = [];
+  concepts.forEach((c, i) => {
+    const t = (i + 0.8) / (concepts.length + 0.5);
+    const pos = path.getPoint(t);
+
+    // Floating orb
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.55, 24, 24),
+      new THREE.MeshStandardMaterial({
+        color: c.color, emissive: c.color, emissiveIntensity: 0.7,
+        roughness: 0.2, metalness: 0.5,
+      })
+    );
+    orb.position.set(pos.x, 2.0, pos.z);
+    orb.castShadow = true;
+    scene.add(orb);
+    nodes.push(orb);
+
+    // Glow light
+    const glow = new THREE.PointLight(c.color, 2.2, 14);
+    glow.position.copy(orb.position);
+    scene.add(glow);
+
+    // Thin pillar beneath orb
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 2.0, 6),
+      new THREE.MeshBasicMaterial({ color: c.color })
+    );
+    pillar.position.set(pos.x, 1.0, pos.z);
+    scene.add(pillar);
+
+    // Ring around orb
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.85, 0.03, 8, 32),
+      new THREE.MeshBasicMaterial({ color: c.color })
+    );
+    ring.position.copy(orb.position);
+    ring.rotation.x = Math.PI / 2;
+    scene.add(ring);
+    nodes.push(ring);
+  });
+
+  // ── Tall obelisks scattered in the scene ───────────────
+  const obeliskPositions = [
+    [-12, -15], [14, -20], [-8, -35], [16, -42],
+    [-14, -55], [10, -60], [-6, -75], [12, -80],
+  ];
+  obeliskPositions.forEach(([x, z]) => {
+    const h = 4 + Math.random() * 6;
+    const obelisk = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, h, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x1a0f07, roughness: 0.9, metalness: 0.1 })
+    );
+    obelisk.position.set(x, h / 2, z);
+    obelisk.castShadow = true;
+    scene.add(obelisk);
+
+    // Faint orange edge light at top of each obelisk
+    const top = new THREE.PointLight(0xe84d1a, 0.4, 8);
+    top.position.set(x, h, z);
+    scene.add(top);
+  });
+
+  // ── Floating particles (data cloud) ────────────────────
+  const N = 600;
+  const pPos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const t = Math.random();
+    const pt = path.getPoint(t);
+    pPos[i * 3]     = pt.x + (Math.random() - 0.5) * 30;
+    pPos[i * 3 + 1] = 1.5 + Math.random() * 12;
+    pPos[i * 3 + 2] = pt.z + (Math.random() - 0.5) * 10;
+  }
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+  scene.add(new THREE.Points(pGeo,
+    new THREE.PointsMaterial({ color: 0xe84d1a, size: 0.06, transparent: true, opacity: 0.45 })
+  ));
+
+  // ── Ambient + directional light ─────────────────────────
+  scene.add(new THREE.AmbientLight(0x1a0e08, 1.8));
+  const dir = new THREE.DirectionalLight(0xf4a261, 0.6);
+  dir.position.set(10, 20, -30);
+  scene.add(dir);
+
+  // ── Scroll-driven camera ────────────────────────────────
+  let scrollProgress = 0;
+
+  gsap.to({ p: 0 }, {
+    p: 1,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: '.hero-scroll-track',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: 1.4,
+      onUpdate: (self) => { scrollProgress = self.progress; },
+    }
+  });
+
+  // ── Render loop ─────────────────────────────────────────
+  let raf;
+  function animate(time) {
+    raf = requestAnimationFrame(animate);
+
+    // Camera follows path
+    const t = scrollProgress * 0.85;
+    const tLook = Math.min(t + 0.03, 0.999);
+    const camPos = path.getPoint(t);
+    const lookAt = path.getPoint(tLook);
+
+    camera.position.lerp(camPos, 0.12);
+    // Subtle float
+    camera.position.y += Math.sin(time * 0.0006) * 0.05;
+    camera.lookAt(lookAt.x, lookAt.y, lookAt.z);
+
+    // Pulse orbs gently
+    nodes.forEach((n, i) => {
+      if (n.type === 'Mesh' && n.geometry.type === 'SphereGeometry') {
+        const s = 1 + 0.07 * Math.sin(time * 0.002 + i * 1.3);
+        n.scale.setScalar(s);
+      }
+    });
+
+    renderer.render(scene, camera);
+  }
+  animate(0);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cancelAnimationFrame(raf);
+    else animate(0);
+  });
 })();
 
 // ── GSAP card reveals ────────────────────────────────────────────────────────
