@@ -191,6 +191,7 @@
       position: relative; z-index: 2;
       max-width: 1100px; margin: 0 auto; padding: 0 24px;
       padding-top: 56px;
+      will-change: transform, opacity;
     }
     .hero-badge {
       display: inline-flex; align-items: center; gap: 8px;
@@ -1189,6 +1190,29 @@ gsap.registerPlugin(ScrollTrigger);
   const dir = new THREE.DirectionalLight(0xf4a261, 0.6);
   dir.position.set(10, 20, -30);
   scene.add(dir);
+
+  // ── Hero text exit (first 22% of track) ────────────────
+  gsap.to('.hero-content', {
+    y: '-130%',
+    opacity: 0,
+    ease: 'power2.in',
+    scrollTrigger: {
+      trigger: '.hero-scroll-track',
+      start: 'top top',
+      end: '22% top',
+      scrub: 0.9,
+    }
+  });
+  gsap.to('.hero-scroll-hint', {
+    opacity: 0,
+    ease: 'none',
+    scrollTrigger: {
+      trigger: '.hero-scroll-track',
+      start: 'top top',
+      end: '7% top',
+      scrub: 0.4,
+    }
+  });
 
   // ── Scroll-driven camera ────────────────────────────────
   let scrollProgress = 0;
